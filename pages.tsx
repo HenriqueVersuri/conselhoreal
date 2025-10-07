@@ -876,11 +876,19 @@ export const LoginPage: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        const normalizedEmail = email.trim();
+        const normalizedPassword = password.trim();
+
+        if (!normalizedEmail || !normalizedPassword) {
+            setError('Informe email e senha para continuar.');
+            return;
+        }
+
         setError('');
         setIsLoading(true);
 
         try {
-            const authenticatedUser = await authenticateUser(email, password);
+            const authenticatedUser = await authenticateUser(normalizedEmail, normalizedPassword);
             dispatch(loginSuccess(authenticatedUser));
             navigate('/membros/dashboard');
         } catch (authError) {

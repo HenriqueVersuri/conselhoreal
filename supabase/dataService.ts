@@ -580,16 +580,17 @@ export const deleteUser = async (userId: number): Promise<void> => {
 
 export const authenticateUser = async (email: string, password: string): Promise<User> => {
     const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPassword = password.trim();
 
     if (!isSupabaseConfigured() || !supabase) {
-        return authenticateWithMocks(normalizedEmail, password);
+        return authenticateWithMocks(normalizedEmail, normalizedPassword);
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password: normalizedPassword });
 
     if (error || !data?.user) {
         console.warn('[Supabase] Falha ao autenticar via Supabase, utilizando credenciais locais como fallback.', error);
-        return authenticateWithMocks(normalizedEmail, password);
+        return authenticateWithMocks(normalizedEmail, normalizedPassword);
     }
 
     const existingProfile = await getUserByEmail(normalizedEmail);
