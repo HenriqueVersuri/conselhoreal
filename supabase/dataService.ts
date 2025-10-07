@@ -4,6 +4,7 @@ import {
     MOCK_PRAYER_REQUESTS,
     MOCK_IMAGES,
     MOCK_USERS,
+    MOCK_USER_CREDENTIALS,
     MOCK_DIARY_ENTRIES,
     MOCK_RECADOS,
     MOCK_MEMBER_ENTITIES,
@@ -529,6 +530,65 @@ export const deleteUser = async (userId: number): Promise<void> => {
     if (error) throw error;
 };
 
+export const authenticateUser = async (email: string, password: string): Promise<User> => {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!isSupabaseConfigured() || !supabase) {
+        const credential = MOCK_USER_CREDENTIALS.find(
+            cred => cred.email.toLowerCase() === normalizedEmail && cred.password === password
+        );
+
+        if (!credential) {
+            throw new Error('Credenciais inválidas.');
+        }
+
+        const user = MOCK_USERS.find(mockUser => mockUser.email.toLowerCase() === normalizedEmail);
+
+        if (!user) {
+            throw new Error('Perfil de usuário não encontrado.');
+        }
+
+        return cloneUser(user);
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+
+    if (error || !data?.user) {
+        throw error ?? new Error('Credenciais inválidas.');
+    }
+
+    const existingProfile = await getUserByEmail(normalizedEmail);
+    if (existingProfile) {
+        return existingProfile;
+    }
+
+    const inferredName = data.user.user_metadata?.name
+        ?? data.user.email?.split('@')[0]?.replace(/[._-]+/g, ' ')
+        ?? 'Membro';
+
+    const fallbackRole = normalizedEmail === 'versurih@gmail.com' ? Role.ADM : Role.MEMBRO;
+    const inferredRole = (data.user.user_metadata?.role ?? fallbackRole) as Role;
+
+    return saveUser({
+        name: inferredName,
+        email: data.user.email ?? normalizedEmail,
+        role: inferredRole,
+        memberSince: undefined,
+        allergies: undefined,
+    });
+};
+
+export const signOut = async (): Promise<void> => {
+    if (!isSupabaseConfigured() || !supabase) {
+        return;
+    }
+
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+        console.error('[Supabase] Falha ao encerrar sessão:', error);
+    }
+};
+
 export const listDiaryEntries = async (userId: number): Promise<DiaryEntry[]> => {
     if (!isSupabaseConfigured() || !supabase) {
         return fallback(
@@ -632,26 +692,32 @@ export const deleteDiaryEntry = async (entryId: number): Promise<void> => {
     if (error) throw error;
 };
 
-export const listRecados = async (userId: number): Promise<Recado[]> => {
+export const listRecados = async (userId?: number): Promise<Recado[]> => {
+    const selectSource = () => {
+        if (typeof userId === 'number') {
+            return MOCK_RECADOS.filter(recado => recado.userId === userId);
+        }
+        return MOCK_RECADOS;
+    };
+
     if (!isSupabaseConfigured() || !supabase) {
-        return fallback(
-            MOCK_RECADOS.filter(recado => recado.userId === userId),
-            cloneRecado
-        );
+        return fallback(selectSource(), cloneRecado);
     }
 
-    const { data, error } = await supabase
+    let query = supabase
         .from('recados')
         .select('*')
-        .eq('user_id', userId)
         .order('date', { ascending: false });
+
+    if (typeof userId === 'number') {
+        query = query.eq('user_id', userId);
+    }
+
+    const { data, error } = await query;
 
     if (error || !data) {
         console.error('[Supabase] Falha ao carregar recados:', error);
-        return fallback(
-            MOCK_RECADOS.filter(recado => recado.userId === userId),
-            cloneRecado
-        );
+        return fallback(selectSource(), cloneRecado);
     }
 
     return data.map(mapRecadoRow);

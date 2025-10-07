@@ -529,9 +529,13 @@ export const EventFormModal: React.FC<{
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSaving(true);
-        await new Promise(res => setTimeout(res, 1000));
-        onSave({ title, type, date: new Date(`${date}T12:00:00`), capacity });
-        setIsSaving(false);
+        try {
+            await Promise.resolve(onSave({ title, type, date: new Date(`${date}T12:00:00`), capacity }));
+        } catch (error) {
+            console.error('[EventFormModal] Falha ao salvar evento', error);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
@@ -607,15 +611,19 @@ export const UserFormModal: React.FC<{
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSaving(true);
-        await new Promise(res => setTimeout(res, 800));
-        onSave({
-            name,
-            email,
-            role,
-            memberSince: memberSince || undefined,
-            allergies: allergies || undefined,
-        });
-        setIsSaving(false);
+        try {
+            await Promise.resolve(onSave({
+                name,
+                email,
+                role,
+                memberSince: memberSince || undefined,
+                allergies: allergies || undefined,
+            }));
+        } catch (error) {
+            console.error('[UserFormModal] Falha ao salvar usuário', error);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
@@ -748,9 +756,13 @@ export const EntityFormModal: React.FC<{
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSaving(true);
-        await new Promise(res => setTimeout(res, 1000));
-        onSave({ name, line, history, curiosities });
-        setIsSaving(false);
+        try {
+            await Promise.resolve(onSave({ name, line, history, curiosities }));
+        } catch (error) {
+            console.error('[EntityFormModal] Falha ao salvar entidade de membro', error);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
@@ -876,9 +888,13 @@ export const SpiritualEntityFormModal: React.FC<{
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSaving(true);
-        await new Promise(res => setTimeout(res, 1000));
-        onSave({ name, line, description });
-        setIsSaving(false);
+        try {
+            await Promise.resolve(onSave({ name, line, description }));
+        } catch (error) {
+            console.error('[SpiritualEntityFormModal] Falha ao salvar entidade espiritual', error);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
@@ -966,10 +982,14 @@ export const PrivateMessageModal: React.FC<{
         e.preventDefault();
         if (!message.trim()) return;
         setIsSending(true);
-        await new Promise(res => setTimeout(res, 1000));
-        onSend(message);
-        setIsSending(false);
-        setMessage('');
+        try {
+            await Promise.resolve(onSend(message));
+            setMessage('');
+        } catch (error) {
+            console.error('[PrivateMessageModal] Falha ao enviar mensagem', error);
+        } finally {
+            setIsSending(false);
+        }
     };
 
     return (

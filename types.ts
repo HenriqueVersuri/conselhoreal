@@ -58,51 +58,56 @@ export interface DiaryEntry {
 }
 
 export enum ImageCategory {
-    TERREIRO = 'Terreiro',
-    EVENTOS = 'Eventos',
-    SIMBOLOS = 'Símbolos',
+  TERREIRO = 'Terreiro',
+  EVENTOS = 'Eventos',
+  SIMBOLOS = 'Símbolos',
 }
 
 export interface GalleryImage {
-    id: number;
-    src: string;
-    alt: string;
-    caption: string;
-    category: ImageCategory;
+  id: number;
+  src: string;
+  alt: string;
+  caption: string;
+  category: ImageCategory;
 }
 
 export interface SpiritualEntity {
-    id: number;
-    name: string;
+  id: number;
+  name: string;
+  description: string;
+  line: string; // e.g., 'Exu', 'Malandragem', 'Caboclos'
+  descriptionHistory?: {
+    timestamp: Date;
     description: string;
-    line: string; // e.g., 'Exu', 'Malandragem', 'Caboclos'
-    descriptionHistory?: {
-        timestamp: Date;
-        description: string;
-    }[];
+  }[];
 }
 
 export interface LoreEntry {
-    id: number;
-    title: string;
-    content: string;
-    relatedEntities: number[]; // IDs of SpiritualEntity
+  id: number;
+  title: string;
+  content: string;
+  relatedEntities: number[]; // IDs of SpiritualEntity
 }
 
 export interface Recado {
-    id: number;
-    userId: number;
-    from: string;
-    message: string;
-    date: Date;
-    read: boolean;
+  id: number;
+  userId: number;
+  from: string;
+  message: string;
+  date: Date;
+  read: boolean;
 }
 
 export interface MemberEntity {
-    id: number;
-    userId: number;
-    name: string;
-    line: string;
-    history: string;
-    curiosities: string;
+  id: number;
+  userId: number;
+  name: string;
+  line: string;
+  history: string;
+  curiosities: string;
+}
+
+export interface UserCredential {
+  email: string;
+  password: string;
 }

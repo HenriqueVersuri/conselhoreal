@@ -3,7 +3,7 @@ import { useNavigate, NavLink } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from './store/store';
 import { loginSuccess } from './store/authSlice';
-import { MOCK_EVENTS, MOCK_ANNOUNCEMENTS, MOCK_PRAYER_REQUESTS, MOCK_USERS, MOCK_DIARY_ENTRIES, MOCK_IMAGES, MOCK_ENTITIES, MOCK_LORE, MOCK_RECADOS, MOCK_MEMBER_ENTITIES } from './data';
+import { MOCK_EVENTS, MOCK_ANNOUNCEMENTS, MOCK_PRAYER_REQUESTS, MOCK_USERS, MOCK_DIARY_ENTRIES, MOCK_ENTITIES, MOCK_LORE, MOCK_RECADOS, MOCK_MEMBER_ENTITIES } from './data';
 import {
     listEvents,
     saveEvent,
@@ -14,6 +14,7 @@ import {
     createPrayerRequest,
     listGalleryImages,
     createGalleryImage,
+    authenticateUser,
     getUserByEmail,
     listDiaryEntries,
     saveDiaryEntry,
@@ -34,7 +35,7 @@ import {
     appendSpiritualEntityHistory,
     listLoreEntries
 } from './supabase/dataService';
-import { isSupabaseConfigured } from './supabase/client';
+import { getSupabaseClient, isSupabaseConfigured } from './supabase/client';
 import { CrownIcon, TridentIcon, MalandroHatIcon, SparkleIcon, CrossroadsIcon, BellIcon, CalendarIcon, UserIcon, CalendarGrid, EditIcon, TrashIcon, FileIcon, Spinner, BotMessageSquareIcon, XIcon, EventFormModal, PrivateMessageModal, ConfirmationModal, EntityFormModal, SpiritualEntityFormModal, DownloadIcon, HistoryIcon, DescriptionHistoryModal, UserFormModal } from './components';
 import { EventType, DiaryEntry, ImageCategory, GalleryImage, Role, Event, User, MemberEntity, SpiritualEntity, PrayerRequest, Announcement, Recado, LoreEntry } from './types';
 
@@ -174,6 +175,68 @@ const Section: React.FC<{ title: string; children: React.ReactNode; className?: 
 
 
 export const HomePage: React.FC = () => {
+    const [events, setEvents] = useState<Event[]>([]);
+    const [eventsLoading, setEventsLoading] = useState(true);
+    const [eventsError, setEventsError] = useState<string | null>(null);
+
+    const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+    const [announcementsLoading, setAnnouncementsLoading] = useState(true);
+    const [announcementsError, setAnnouncementsError] = useState<string | null>(null);
+
+    useEffect(() => {
+        let active = true;
+        const loadEvents = async () => {
+            setEventsLoading(true);
+            try {
+                const data = await listEvents();
+                if (!active) return;
+                setEvents(data);
+                setEventsError(null);
+            } catch (error) {
+                console.error('[HomePage] Erro ao carregar eventos', error);
+                if (active) {
+                    setEventsError('Não foi possível carregar a agenda no momento.');
+                }
+            } finally {
+                if (active) {
+                    setEventsLoading(false);
+                }
+            }
+        };
+
+        loadEvents();
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    useEffect(() => {
+        let active = true;
+        const loadAnnouncements = async () => {
+            setAnnouncementsLoading(true);
+            try {
+                const data = await listAnnouncements();
+                if (!active) return;
+                setAnnouncements(data);
+                setAnnouncementsError(null);
+            } catch (error) {
+                console.error('[HomePage] Erro ao carregar avisos', error);
+                if (active) {
+                    setAnnouncementsError('Não foi possível carregar os avisos agora.');
+                }
+            } finally {
+                if (active) {
+                    setAnnouncementsLoading(false);
+                }
+            }
+        };
+
+        loadAnnouncements();
+        return () => {
+            active = false;
+        };
+    }, []);
+
     return (
         <div>
             <Hero />
@@ -186,21 +249,37 @@ export const HomePage: React.FC = () => {
             </Section>
 
             <Section title="Agenda do Mês" className="bg-[#1A1A1A]/20">
-                <CalendarGrid events={MOCK_EVENTS} />
+                {eventsLoading ? (
+                    <div className="text-center text-gray-400">Carregando agenda...</div>
+                ) : eventsError ? (
+                    <div className="text-center text-red-400">{eventsError}</div>
+                ) : events.length === 0 ? (
+                    <div className="text-center text-gray-400">Nenhum evento programado por enquanto. Volte em breve!</div>
+                ) : (
+                    <CalendarGrid events={events} />
+                )}
             </Section>
 
             <Section title="Últimos Avisos">
                 <div className="space-y-6 max-w-4xl mx-auto">
-                    {MOCK_ANNOUNCEMENTS.map(ann => (
-                        <div key={ann.id} className="bg-[#1A1A1A]/50 p-6 border-l-4 border-[#C0161D] flex items-start gap-4">
-                            <BellIcon className="w-8 h-8 text-[#C0161D] flex-shrink-0 mt-1" />
-                            <div>
-                                <h3 className="text-xl font-bold text-[#FFF8E1]">{ann.title}</h3>
-                                <p className="text-gray-300 mt-2">{ann.content}</p>
-                                <p className="text-xs text-gray-500 mt-4">{ann.date}</p>
+                    {announcementsLoading ? (
+                        <div className="text-center text-gray-400">Carregando avisos...</div>
+                    ) : announcementsError ? (
+                        <div className="text-center text-red-400">{announcementsError}</div>
+                    ) : announcements.length === 0 ? (
+                        <div className="text-center text-gray-400">Nenhum aviso publicado ainda.</div>
+                    ) : (
+                        announcements.map(ann => (
+                            <div key={ann.id} className="bg-[#1A1A1A]/50 p-6 border-l-4 border-[#C0161D] flex items-start gap-4">
+                                <BellIcon className="w-8 h-8 text-[#C0161D] flex-shrink-0 mt-1" />
+                                <div>
+                                    <h3 className="text-xl font-bold text-[#FFF8E1]">{ann.title}</h3>
+                                    <p className="text-gray-300 mt-2">{ann.content}</p>
+                                    <p className="text-xs text-gray-500 mt-4">{ann.date}</p>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        ))
+                    )}
                 </div>
             </Section>
 
@@ -213,13 +292,59 @@ export const HomePage: React.FC = () => {
 
 // AGENDA PAGE
 export const AgendaPage: React.FC = () => {
+    const [events, setEvents] = useState<Event[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [confirmingId, setConfirmingId] = useState<number | null>(null);
 
+    useEffect(() => {
+        let active = true;
+        const loadEvents = async () => {
+            setIsLoading(true);
+            try {
+                const data = await listEvents();
+                if (!active) return;
+                setEvents(data);
+                setErrorMessage(null);
+            } catch (error) {
+                console.error('[AgendaPage] Erro ao carregar eventos', error);
+                if (active) {
+                    setErrorMessage('Não foi possível carregar os eventos agora.');
+                }
+            } finally {
+                if (active) {
+                    setIsLoading(false);
+                }
+            }
+        };
+
+        loadEvents();
+        return () => {
+            active = false;
+        };
+    }, []);
+
     const handleParticipate = async (eventId: number) => {
+        const event = events.find(evt => evt.id === eventId);
+        if (!event) return;
+
         setConfirmingId(eventId);
-        // Simulate API call
-        await new Promise(res => setTimeout(res, 1500));
-        setConfirmingId(null);
+        try {
+            const updated = await saveEvent({
+                id: event.id,
+                title: event.title,
+                type: event.type,
+                date: event.date,
+                capacity: event.capacity,
+                attendees: event.attendees + 1,
+            });
+            setEvents(prev => prev.map(evt => (evt.id === updated.id ? updated : evt)));
+        } catch (error) {
+            console.error('[AgendaPage] Erro ao confirmar participação', error);
+            setErrorMessage('Não foi possível confirmar presença. Tente novamente.');
+        } finally {
+            setConfirmingId(null);
+        }
     };
 
     return (
@@ -227,31 +352,47 @@ export const AgendaPage: React.FC = () => {
             <h1 className="text-4xl font-bold text-center uppercase tracking-widest mb-12">Agenda de Eventos</h1>
             <div className="mb-12">
                 <h2 className="text-2xl font-bold text-center uppercase tracking-widest mb-6">Calendário do Mês</h2>
-                <CalendarGrid events={MOCK_EVENTS} />
+                {isLoading ? (
+                    <div className="text-center text-gray-400">Carregando agenda...</div>
+                ) : errorMessage ? (
+                    <div className="text-center text-red-400">{errorMessage}</div>
+                ) : events.length === 0 ? (
+                    <div className="text-center text-gray-400">Nenhum evento programado por enquanto.</div>
+                ) : (
+                    <CalendarGrid events={events} />
+                )}
             </div>
             <h2 className="text-2xl font-bold text-center uppercase tracking-widest mb-6">Próximos Eventos</h2>
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {MOCK_EVENTS.map(event => (
-                    <div key={event.id} className="bg-[#1A1A1A] p-6 rounded-lg border border-[#333] flex flex-col">
-                        <span className={`px-3 py-1 text-xs uppercase rounded-full self-start ${event.type === EventType.GIRA ? 'bg-[#C0161D]' : 'bg-[#D4AF37] text-black'}`}>{event.type}</span>
-                        <h3 className="text-2xl mt-4">{event.title}</h3>
-                        <p className="text-gray-400 mt-2">{event.date.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                        <div className="mt-4 text-sm">
-                            <p>Lotação: {event.attendees} / {event.capacity}</p>
-                            <div className="w-full bg-gray-700 h-2 rounded-full mt-1">
-                                <div className="bg-[#D4AF37] h-2 rounded-full" style={{ width: `${(event.attendees / event.capacity) * 100}%` }}></div>
+            {isLoading ? (
+                <div className="text-center text-gray-400">Carregando lista de eventos...</div>
+            ) : errorMessage ? (
+                <div className="text-center text-red-400">{errorMessage}</div>
+            ) : events.length === 0 ? (
+                <div className="text-center text-gray-400">Nenhum evento listado.</div>
+            ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {events.map(event => (
+                        <div key={event.id} className="bg-[#1A1A1A] p-6 rounded-lg border border-[#333] flex flex-col">
+                            <span className={`px-3 py-1 text-xs uppercase rounded-full self-start ${event.type === EventType.GIRA ? 'bg-[#C0161D]' : 'bg-[#D4AF37] text-black'}`}>{event.type}</span>
+                            <h3 className="text-2xl mt-4">{event.title}</h3>
+                            <p className="text-gray-400 mt-2">{event.date.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                            <div className="mt-4 text-sm">
+                                <p>Lotação: {event.attendees} / {event.capacity}</p>
+                                <div className="w-full bg-gray-700 h-2 rounded-full mt-1">
+                                    <div className="bg-[#D4AF37] h-2 rounded-full" style={{ width: `${Math.min(100, (event.attendees / Math.max(1, event.capacity)) * 100)}%` }}></div>
+                                </div>
                             </div>
+                            <button
+                                onClick={() => handleParticipate(event.id)}
+                                disabled={confirmingId === event.id}
+                                className="mt-auto pt-6 w-full text-center px-6 py-2 uppercase tracking-widest bg-[#D4AF37] text-[#0B0B0B] font-bold hover:bg-opacity-80 transition-all duration-300 flex justify-center items-center disabled:bg-opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {confirmingId === event.id ? <Spinner className="w-5 h-5" /> : 'Participar'}
+                            </button>
                         </div>
-                        <button
-                            onClick={() => handleParticipate(event.id)}
-                            disabled={confirmingId === event.id}
-                            className="mt-auto pt-6 w-full text-center px-6 py-2 uppercase tracking-widest bg-[#D4AF37] text-[#0B0B0B] font-bold hover:bg-opacity-80 transition-all duration-300 flex justify-center items-center disabled:bg-opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {confirmingId === event.id ? <Spinner className="w-5 h-5" /> : 'Participar'}
-                        </button>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
@@ -447,7 +588,9 @@ export const SobrePage: React.FC = () => (
 // GALLERY PAGE
 export const GalleryPage: React.FC = () => {
     const { user } = useSelector((state: RootState) => state.auth);
-    const [images, setImages] = useState<GalleryImage[]>(MOCK_IMAGES);
+    const [images, setImages] = useState<GalleryImage[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [filter, setFilter] = useState('Todos');
     const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
 
@@ -458,6 +601,35 @@ export const GalleryPage: React.FC = () => {
     const [category, setCategory] = useState<ImageCategory>(ImageCategory.TERREIRO);
     const [uploadError, setUploadError] = useState('');
     const [isUploading, setIsUploading] = useState(false);
+    const supabaseReady = isSupabaseConfigured();
+    const supabaseClient = getSupabaseClient();
+
+    useEffect(() => {
+        let active = true;
+        const loadImages = async () => {
+            setIsLoading(true);
+            try {
+                const data = await listGalleryImages();
+                if (!active) return;
+                setImages(data);
+                setLoadError(null);
+            } catch (error) {
+                console.error('[GalleryPage] Erro ao carregar galeria', error);
+                if (active) {
+                    setLoadError('Não foi possível carregar a galeria agora.');
+                }
+            } finally {
+                if (active) {
+                    setIsLoading(false);
+                }
+            }
+        };
+
+        loadImages();
+        return () => {
+            active = false;
+        };
+    }, []);
 
     const categories = ['Todos', ...Object.values(ImageCategory)];
 
@@ -482,7 +654,7 @@ export const GalleryPage: React.FC = () => {
         }
     };
 
-    const handleUploadSubmit = (e: React.FormEvent) => {
+    const handleUploadSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!imageFile || !altText || !caption) {
             setUploadError('Todos os campos são obrigatórios.');
@@ -490,19 +662,47 @@ export const GalleryPage: React.FC = () => {
         }
         setIsUploading(true);
 
-        // Simulate upload
-        setTimeout(() => {
-            const newImage: GalleryImage = {
-                id: Date.now(),
-                src: URL.createObjectURL(imageFile),
+        try {
+            let publicUrl: string;
+
+            if (!supabaseReady || !supabaseClient) {
+                // Fallback em desenvolvimento: utiliza URL temporária local
+                publicUrl = URL.createObjectURL(imageFile);
+            } else {
+                const fileExt = imageFile.name.split('.').pop()?.toLowerCase() ?? 'jpg';
+                const filePath = `gallery/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+
+                const { error: uploadError } = await supabaseClient.storage
+                    .from('gallery')
+                    .upload(filePath, imageFile, {
+                        cacheControl: '3600',
+                        upsert: false,
+                    });
+
+                if (uploadError) {
+                    throw uploadError;
+                }
+
+                const { data: publicData } = supabaseClient.storage
+                    .from('gallery')
+                    .getPublicUrl(filePath);
+
+                if (!publicData?.publicUrl) {
+                    throw new Error('Não foi possível obter a URL pública do arquivo.');
+                }
+
+                publicUrl = publicData.publicUrl;
+            }
+
+            const created = await createGalleryImage({
+                src: publicUrl,
                 alt: altText,
                 caption,
                 category,
-            };
+            });
 
-            setImages(prevImages => [newImage, ...prevImages]);
+            setImages(prevImages => [created, ...prevImages]);
 
-            // Reset form
             setImageFile(null);
             setAltText('');
             setCaption('');
@@ -510,8 +710,16 @@ export const GalleryPage: React.FC = () => {
             setUploadError('');
             const fileInput = document.getElementById('image-upload-input') as HTMLInputElement;
             if (fileInput) fileInput.value = '';
+        } catch (error) {
+            console.error('[GalleryPage] Erro ao enviar imagem', error);
+            setUploadError(
+                supabaseReady
+                    ? 'Não foi possível enviar a imagem. Verifique se o bucket "gallery" existe e tente novamente.'
+                    : 'Supabase não configurado. Configure o backend para liberar o envio de imagens.'
+            );
+        } finally {
             setIsUploading(false);
-        }, 2000);
+        }
     };
 
     return (
@@ -520,6 +728,16 @@ export const GalleryPage: React.FC = () => {
             <p className="text-center text-gray-400 max-w-2xl mx-auto mb-12">
                 Explore os momentos, os símbolos e o espaço sagrado que compõem a jornada do Conselho Real.
             </p>
+
+            {loadError && (
+                <div className="mb-6 text-center text-red-400 text-sm">{loadError}</div>
+            )}
+
+            {!supabaseReady && (
+                <div className="mb-8 bg-[#1A1A1A]/60 border border-dashed border-[#D4AF37]/40 text-sm text-gray-300 p-4 rounded-md">
+                    <p>Configure o Supabase (URL e chave) e crie um bucket público chamado <code>gallery</code> para armazenar as imagens enviadas.</p>
+                </div>
+            )}
 
             {user?.role === Role.ADM && (
                 <div className="mb-12 bg-[#1A1A1A] p-6 rounded-lg border border-[#333]">
@@ -603,20 +821,26 @@ export const GalleryPage: React.FC = () => {
                 ))}
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {filteredImages.map(image => (
-                    <div
-                        key={image.id}
-                        className="group relative aspect-square overflow-hidden rounded-lg cursor-pointer"
-                        onClick={() => setSelectedImage(image)}
-                    >
-                        <img src={image.src} alt={image.alt} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
-                            <p className="text-white text-sm">{image.caption}</p>
+            {isLoading ? (
+                <div className="text-center text-gray-400">Carregando galeria...</div>
+            ) : filteredImages.length === 0 ? (
+                <div className="text-center text-gray-400">Nenhuma imagem cadastrada ainda.</div>
+            ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {filteredImages.map(image => (
+                        <div
+                            key={image.id}
+                            className="group relative aspect-square overflow-hidden rounded-lg cursor-pointer"
+                            onClick={() => setSelectedImage(image)}
+                        >
+                            <img src={image.src} alt={image.alt} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+                                <p className="text-white text-sm">{image.caption}</p>
+                            </div>
                         </div>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            )}
 
             {selectedImage && (
                 <div
@@ -644,27 +868,27 @@ export const GalleryPage: React.FC = () => {
 // LOGIN PAGE
 export const LoginPage: React.FC = () => {
     const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setIsLoading(true);
 
-        // Simulate API call
-        setTimeout(() => {
-            const foundUser = MOCK_USERS.find(u => u.email === email);
-            if (foundUser) {
-                dispatch(loginSuccess(foundUser));
-                navigate('/membros/dashboard');
-            } else {
-                setError('Algo fechou os caminhos agora. Verifique seu e-mail e tente novamente.');
-                setIsLoading(false);
-            }
-        }, 1500);
+        try {
+            const authenticatedUser = await authenticateUser(email, password);
+            dispatch(loginSuccess(authenticatedUser));
+            navigate('/membros/dashboard');
+        } catch (authError) {
+            console.error('[LoginPage] Falha na autenticação', authError);
+            setError('Credenciais inválidas. Verifique seu e-mail e senha e tente novamente.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -684,9 +908,21 @@ export const LoginPage: React.FC = () => {
                             required
                         />
                     </div>
+                    <div>
+                        <label htmlFor="password" className="block text-sm uppercase tracking-wider mb-2">Senha</label>
+                        <input
+                            type="password"
+                            id="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="w-full bg-[#0B0B0B] p-3 border border-[#333] focus:border-[#D4AF37] focus:outline-none"
+                            required
+                            minLength={6}
+                        />
+                    </div>
                     <button
                         type="submit"
-                        disabled={isLoading}
+                        disabled={isLoading || !email || !password}
                         className="w-full px-8 py-3 uppercase tracking-widest bg-[#D4AF37] text-[#0B0B0B] font-bold hover:bg-opacity-80 transition-all duration-300 flex justify-center items-center disabled:bg-opacity-50 disabled:cursor-not-allowed"
                     >
                         {isLoading ? <Spinner className="w-5 h-5" /> : 'Entrar'}
@@ -695,8 +931,14 @@ export const LoginPage: React.FC = () => {
                 </form>
                 <div className="mt-6 p-4 bg-[#0B0B0B] border border-[#333] rounded-lg text-sm text-center text-gray-400">
                     <h4 className="font-bold text-[#D4AF37] mb-2 uppercase tracking-wider">Acessos de Teste</h4>
-                    <p><strong className="font-semibold text-gray-300">Admin:</strong> admin@conselhoreal.com</p>
-                    <p><strong className="font-semibold text-gray-300">Membro:</strong> membro@conselhoreal.com</p>
+                    <p>
+                        <strong className="font-semibold text-gray-300">Admin:</strong> versurih@gmail.com<br />
+                        <span className="text-xs text-gray-500">Senha: reidas7ebrilhantina</span>
+                    </p>
+                    <p className="mt-3">
+                        <strong className="font-semibold text-gray-300">Membro:</strong> membro@conselhoreal.com<br />
+                        <span className="text-xs text-gray-500">Senha: visitante123</span>
+                    </p>
                 </div>
             </div>
         </div>

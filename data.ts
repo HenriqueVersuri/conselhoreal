@@ -1,16 +1,21 @@
-import { Role, EventType, ImageCategory, type User, type Event, type PrayerRequest, type Announcement, type DiaryEntry, type GalleryImage, type SpiritualEntity, type LoreEntry, type Recado, type MemberEntity } from './types';
+import { Role, EventType, ImageCategory, type User, type Event, type PrayerRequest, type Announcement, type DiaryEntry, type GalleryImage, type SpiritualEntity, type LoreEntry, type Recado, type MemberEntity, type UserCredential } from './types';
 
 export const MOCK_USERS: User[] = [
-  { id: 1, name: 'Admin Geral', email: 'admin@conselhoreal.com', role: Role.ADM },
-  { id: 2, name: 'Membro Teste', email: 'membro@conselhoreal.com', role: Role.MEMBRO, memberSince: '2022-01-15', allergies: 'Amendoim' },
-  { id: 3, name: 'Joana Silva', email: 'joana@email.com', role: Role.MEMBRO, memberSince: '2021-11-20' },
+    { id: 1, name: 'Henrique Versuri', email: 'versurih@gmail.com', role: Role.ADM },
+    { id: 2, name: 'Membro Teste', email: 'membro@conselhoreal.com', role: Role.MEMBRO, memberSince: '2022-01-15', allergies: 'Amendoim' },
+    { id: 3, name: 'Joana Silva', email: 'joana@email.com', role: Role.MEMBRO, memberSince: '2021-11-20' },
+];
+
+export const MOCK_USER_CREDENTIALS: UserCredential[] = [
+    { email: 'versurih@gmail.com', password: 'reidas7ebrilhantina' },
+    { email: 'membro@conselhoreal.com', password: 'visitante123' },
 ];
 
 export const MOCK_EVENTS: Event[] = [
-  { id: 1, title: 'Gira de Exu', type: EventType.GIRA, date: new Date(new Date().setDate(new Date().getDate() + 5)), capacity: 50, attendees: 45 },
-  { id: 2, title: 'Atendimento com Malandros', type: EventType.ATENDIMENTO, date: new Date(new Date().setDate(new Date().getDate() + 12)), capacity: 30, attendees: 30 },
-  { id: 3, title: 'Estudo de Doutrina', type: EventType.ESTUDO, date: new Date(new Date().setDate(new Date().getDate() + 19)), capacity: 25, attendees: 15 },
-  { id: 4, title: 'Gira de Pombagira', type: EventType.GIRA, date: new Date(new Date().setDate(new Date().getDate() + 26)), capacity: 50, attendees: 20 },
+    { id: 1, title: 'Gira de Exu', type: EventType.GIRA, date: new Date(new Date().setDate(new Date().getDate() + 5)), capacity: 50, attendees: 45 },
+    { id: 2, title: 'Atendimento com Malandros', type: EventType.ATENDIMENTO, date: new Date(new Date().setDate(new Date().getDate() + 12)), capacity: 30, attendees: 30 },
+    { id: 3, title: 'Estudo de Doutrina', type: EventType.ESTUDO, date: new Date(new Date().setDate(new Date().getDate() + 19)), capacity: 25, attendees: 15 },
+    { id: 4, title: 'Gira de Pombagira', type: EventType.GIRA, date: new Date(new Date().setDate(new Date().getDate() + 26)), capacity: 50, attendees: 20 },
 ];
 
 export const MOCK_ANNOUNCEMENTS: Announcement[] = [
