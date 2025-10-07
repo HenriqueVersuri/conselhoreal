@@ -448,14 +448,56 @@ export const listUsers = async (): Promise<User[]> => {
     return data.map(mapUserRow);
 };
 
+const upsertMockCredential = (email: string, password: string) => {
+    const normalizedEmail = email.toLowerCase();
+    const existingIndex = MOCK_USER_CREDENTIALS.findIndex(cred => cred.email.toLowerCase() === normalizedEmail);
+    if (existingIndex > -1) {
+        MOCK_USER_CREDENTIALS[existingIndex].password = password;
+    } else {
+        MOCK_USER_CREDENTIALS.push({ email, password });
+    }
+};
+
+const removeMockCredential = (email: string) => {
+    const normalizedEmail = email.toLowerCase();
+    const existingIndex = MOCK_USER_CREDENTIALS.findIndex(cred => cred.email.toLowerCase() === normalizedEmail);
+    if (existingIndex > -1) {
+        MOCK_USER_CREDENTIALS.splice(existingIndex, 1);
+    }
+};
+
+const authenticateWithMocks = (normalizedEmail: string, password: string): User => {
+    const credential = MOCK_USER_CREDENTIALS.find(
+        cred => cred.email.toLowerCase() === normalizedEmail && cred.password === password
+    );
+
+    if (!credential) {
+        throw new Error('Credenciais inválidas.');
+    }
+
+    const user = MOCK_USERS.find(mockUser => mockUser.email.toLowerCase() === normalizedEmail);
+
+    if (!user) {
+        throw new Error('Perfil de usuário não encontrado.');
+    }
+
+    return cloneUser(user);
+};
+
 export const saveUser = async (
-    payload: Omit<User, 'id'> & { id?: number }
+    payload: Omit<User, 'id'> & { id?: number; password?: string }
 ): Promise<User> => {
     if (!isSupabaseConfigured() || !supabase) {
+        const { password, ...userWithoutPassword } = payload;
+        const trimmedPassword = password?.trim();
+
         if (payload.id) {
             const index = MOCK_USERS.findIndex(user => user.id === payload.id);
             if (index > -1) {
-                MOCK_USERS[index] = { ...MOCK_USERS[index], ...payload } as User;
+                MOCK_USERS[index] = { ...MOCK_USERS[index], ...userWithoutPassword } as User;
+                if (trimmedPassword) {
+                    upsertMockCredential(payload.email, trimmedPassword);
+                }
                 return cloneUser(MOCK_USERS[index]);
             }
         }
@@ -467,11 +509,16 @@ export const saveUser = async (
             throw new Error('Já existe um usuário com este e-mail');
         }
 
+        if (!trimmedPassword) {
+            throw new Error('Informe uma senha para o novo usuário.');
+        }
+
         const newUser: User = {
             id: payload.id ?? Date.now(),
-            ...payload,
+            ...userWithoutPassword,
         };
         MOCK_USERS.push(newUser);
+        upsertMockCredential(payload.email, trimmedPassword);
         return cloneUser(newUser);
     }
 
@@ -521,6 +568,7 @@ export const deleteUser = async (userId: number): Promise<void> => {
     if (!isSupabaseConfigured() || !supabase) {
         const index = MOCK_USERS.findIndex(user => user.id === userId);
         if (index > -1) {
+            removeMockCredential(MOCK_USERS[index].email);
             MOCK_USERS.splice(index, 1);
         }
         return;
@@ -534,27 +582,14 @@ export const authenticateUser = async (email: string, password: string): Promise
     const normalizedEmail = email.trim().toLowerCase();
 
     if (!isSupabaseConfigured() || !supabase) {
-        const credential = MOCK_USER_CREDENTIALS.find(
-            cred => cred.email.toLowerCase() === normalizedEmail && cred.password === password
-        );
-
-        if (!credential) {
-            throw new Error('Credenciais inválidas.');
-        }
-
-        const user = MOCK_USERS.find(mockUser => mockUser.email.toLowerCase() === normalizedEmail);
-
-        if (!user) {
-            throw new Error('Perfil de usuário não encontrado.');
-        }
-
-        return cloneUser(user);
+        return authenticateWithMocks(normalizedEmail, password);
     }
 
     const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
 
     if (error || !data?.user) {
-        throw error ?? new Error('Credenciais inválidas.');
+        console.warn('[Supabase] Falha ao autenticar via Supabase, utilizando credenciais locais como fallback.', error);
+        return authenticateWithMocks(normalizedEmail, password);
     }
 
     const existingProfile = await getUserByEmail(normalizedEmail);

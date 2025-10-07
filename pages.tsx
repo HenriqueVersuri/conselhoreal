@@ -3,7 +3,7 @@ import { useNavigate, NavLink } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from './store/store';
 import { loginSuccess } from './store/authSlice';
-import { MOCK_EVENTS, MOCK_ANNOUNCEMENTS, MOCK_PRAYER_REQUESTS, MOCK_USERS, MOCK_DIARY_ENTRIES, MOCK_ENTITIES, MOCK_LORE, MOCK_RECADOS, MOCK_MEMBER_ENTITIES } from './data';
+import { MOCK_EVENTS, MOCK_ANNOUNCEMENTS, MOCK_PRAYER_REQUESTS, MOCK_USERS, MOCK_DIARY_ENTRIES, MOCK_ENTITIES, MOCK_LORE, MOCK_RECADOS, MOCK_MEMBER_ENTITIES, MOCK_USER_CREDENTIALS } from './data';
 import {
     listEvents,
     saveEvent,
@@ -1502,22 +1502,46 @@ export const AdminDashboardPage: React.FC = () => {
         setEditingSpiritualEntity(null);
     };
 
-    const handleSaveUser = (userData: Omit<User, 'id'>) => {
+    const handleSaveUser = (userData: Omit<User, 'id'> & { password?: string }) => {
         setUserFormError(null);
+        const trimmedPassword = userData.password?.trim();
         const emailExists = MOCK_USERS.some(u => u.email.toLowerCase() === userData.email.toLowerCase() && (!editingUser || u.id !== editingUser.id));
         if (emailExists) {
             setUserFormError('Já existe um usuário com este e-mail.');
             return;
         }
 
+        if (!editingUser && (!trimmedPassword || trimmedPassword.length < 6)) {
+            setUserFormError('Defina uma senha com pelo menos 6 caracteres para o novo usuário.');
+            return;
+        }
+
+        if (editingUser && trimmedPassword && trimmedPassword.length < 6) {
+            setUserFormError('Ao atualizar a senha, utilize pelo menos 6 caracteres.');
+            return;
+        }
+
+        const { password, ...userWithoutPassword } = userData;
+
         if (editingUser) {
             const index = MOCK_USERS.findIndex(u => u.id === editingUser.id);
             if (index > -1) {
-                MOCK_USERS[index] = { ...MOCK_USERS[index], ...userData };
+                MOCK_USERS[index] = { ...MOCK_USERS[index], ...userWithoutPassword };
             }
         } else {
             const nextId = MOCK_USERS.length ? Math.max(...MOCK_USERS.map(u => u.id)) + 1 : 1;
-            MOCK_USERS.push({ id: nextId, ...userData });
+            MOCK_USERS.push({ id: nextId, ...userWithoutPassword });
+        }
+
+        if (trimmedPassword) {
+            const existingCredentialIndex = MOCK_USER_CREDENTIALS.findIndex(
+                cred => cred.email.toLowerCase() === userData.email.toLowerCase()
+            );
+            if (existingCredentialIndex > -1) {
+                MOCK_USER_CREDENTIALS[existingCredentialIndex].password = trimmedPassword;
+            } else {
+                MOCK_USER_CREDENTIALS.push({ email: userData.email, password: trimmedPassword });
+            }
         }
 
         setUpdateTrigger(t => t + 1);
